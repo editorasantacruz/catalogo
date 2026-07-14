@@ -1,0 +1,37 @@
+name: Atualizar status do catálogo
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # segunda-feira 05:00 em Brasília (08:00 UTC)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependências
+        run: pip install openpyxl
+
+      - name: Atualizar status de estoque
+        run: python scripts/atualizar_status.py
+
+      - name: Commit e push (se houver mudanças)
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add index.html Catalogo.xlsx
+            git commit -m "Atualiza status de estoque (automação semanal)"
+            git push
+          else
+            echo "Nenhuma mudança de estoque."
+          fi
