@@ -1,0 +1,25 @@
+{
+  "_comentario": "Livros com categoria fixada manualmente pela editora. Qualquer sincronização ou correção futura de categorias (inclusive alinhamento com o site) DEVE respeitar estas escolhas e nunca mover estes livros.",
+  "fixados": [
+    {
+      "titulo": "Brasileiros Heróis da Fé",
+      "categoria": "Biografias & Vidas de Santos",
+      "fixado_em": "2026-07-14"
+    },
+    {
+      "titulo": "Dom Vital: O Heroico Bispo de Olinda",
+      "categoria": "Biografias & Vidas de Santos",
+      "fixado_em": "2026-07-14"
+    },
+    {
+      "titulo": "Garcia Moreno: Presidente da República do Equador",
+      "categoria": "Biografias & Vidas de Santos",
+      "fixado_em": "2026-07-14"
+    },
+    {
+      "titulo": "O Espírito de São Francisco de Sales",
+      "categoria": "Biografias & Vidas de Santos",
+      "fixado_em": "2026-07-14"
+    }
+  ]
+}
