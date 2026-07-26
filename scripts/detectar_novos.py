@@ -71,6 +71,15 @@ def main():
                 if s not in ignorados and not any(s.startswith(p) for p in prefixos)]
     sumidos = sorted(do_catalogo - do_site)
 
+    # Card sem link e card que a atualizacao de estoque nao consegue verificar: o status
+    # dele fica congelado no que estiver la, para sempre, sem ninguem perceber.
+    cards = re.findall(r'<div class="card">.*?(?=<div class="card">|</div>\s*</section>)', html, re.S)
+    sem_link = []
+    for c in cards:
+        if not re.search(r'href="https://www\.editorasantacruz\.com\.br/livros/', c):
+            t = re.search(r'book-title">([^<]*)', c)
+            sem_link.append(t.group(1).strip() if t else "(card sem titulo)")
+
     print(f"Site: **{len(do_site)}** produtos · Catálogo: **{len(do_catalogo)}**\n")
     if faltando:
         print(f"### {len(faltando)} título(s) novo(s) para cadastrar\n")
@@ -80,6 +89,13 @@ def main():
         print("```\n/catalogo\n```")
     else:
         print("Nenhum título novo. Catálogo em dia com o site.")
+
+    if sem_link:
+        print(f"\n### {len(sem_link)} card(s) sem link de produto\n")
+        print("O status destes **não é verificado** pela automação — fica congelado no")
+        print("que estiver lá até alguém corrigir à mão.\n")
+        for t in sem_link:
+            print(f"- {t}")
 
     if sumidos:
         print(f"\n### {len(sumidos)} no catálogo mas fora do sitemap")
