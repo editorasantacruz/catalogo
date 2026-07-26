@@ -8,7 +8,13 @@ O cadastro em si não roda aqui: a capa de cada card vem da pasta do Google Driv
 da editora, que o runner do GitHub não enxerga. Quem monta o card é a skill
 /catalogo, na máquina do Lucas, que tem o Drive montado.
 
-Combos ficam de fora do catálogo por decisão da editora (26/07/2026) — ver
+ATENÇÃO ao comparar: o site usa MAIS DE UM padrão de URL para produto — hoje
+/livros/, /livro/ e /editora-santa-cruz/ aparecem nos cards do catálogo. Por isso
+a comparação é feita pelo último segmento da URL (o slug), e não pelo caminho
+inteiro. Filtrar por "/livros/" deixa produto de fora e inventa problema que não
+existe.
+
+Combos, kits e papelaria ficam fora do catálogo por decisão da editora — ver
 ignorar-no-catalogo.json.
 """
 import json
@@ -22,6 +28,14 @@ INDEX = ROOT / "index.html"
 IGNORAR = ROOT / "ignorar-no-catalogo.json"
 SITEMAP = "https://www.editorasantacruz.com.br/sitemap.xml"
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; CatalogoSantaCruz/1.0)"}
+DOMINIO = "https://www.editorasantacruz.com.br"
+
+# Seções do site que contêm produto. As três primeiras são as que os cards já usam;
+# as outras existem no site mas não entram no catálogo (ver ignorar-no-catalogo.json).
+SECOES_DE_PRODUTO = {
+    "livros", "livro", "editora-santa-cruz",
+    "combos", "combos-santa-cruz", "papelaria",
+}
 
 
 def fetch(url, tries=3):
@@ -36,55 +50,60 @@ def fetch(url, tries=3):
                 return None
 
 
-def slugs_do_site():
-    """O sitemap.xml é um índice — aponta pro sitemap com as URLs de verdade."""
+def slug(url):
+    return url.rstrip("/").rsplit("/", 1)[-1]
+
+
+def produtos_do_site():
+    """O sitemap.xml é um índice — aponta pro sitemap com as URLs de verdade.
+    Devolve {slug: url} das seções de produto."""
     indice = fetch(SITEMAP)
     if indice is None:
         return None
-    slugs = set()
+    achados = {}
     for filho in re.findall(r"<loc>\s*([^<]+?)\s*</loc>", indice.decode("utf-8", "ignore")):
         corpo = fetch(filho)
         if corpo is None:
             return None
-        for u in re.findall(r"editorasantacruz\.com\.br/livros/([^<\s\"]+)",
-                            corpo.decode("utf-8", "ignore")):
-            slugs.add(u.rstrip("/"))
-    return slugs
+        for u in re.findall(r"<loc>\s*([^<]+?)\s*</loc>", corpo.decode("utf-8", "ignore")):
+            partes = u.split("/")
+            if len(partes) > 4 and partes[3] in SECOES_DE_PRODUTO:
+                achados[slug(u)] = u
+    return achados
 
 
 def main():
-    do_site = slugs_do_site()
+    do_site = produtos_do_site()
     if not do_site:
         print("Sitemap indisponível — comparação não foi feita.")
         return 0  # não derruba o job de estoque por causa disso
 
     html = INDEX.read_text(encoding="utf-8")
-    do_catalogo = {u.rstrip("/") for u in
-                   re.findall(r'editorasantacruz\.com\.br/livros/([^"\s]+)"', html)}
+    cards = re.findall(r'<div class="card">.*?(?=<div class="card">|</div>\s*</section>)',
+                       html, re.S)
+    do_catalogo, sem_link = set(), []
+    for c in cards:
+        m = re.search(rf'href="({re.escape(DOMINIO)}/[^"]+)"', c)
+        if m:
+            do_catalogo.add(slug(m.group(1)))
+        else:
+            t = re.search(r'book-title">([^<]*)', c)
+            sem_link.append(t.group(1).strip() if t else "(card sem título)")
 
     ignorados, prefixos = set(), []
     if IGNORAR.exists():
         dados = json.loads(IGNORAR.read_text(encoding="utf-8"))
         ignorados, prefixos = set(dados.get("slugs", [])), dados.get("prefixos", [])
 
-    faltando = [s for s in sorted(do_site - do_catalogo)
+    faltando = [s for s in sorted(set(do_site) - do_catalogo)
                 if s not in ignorados and not any(s.startswith(p) for p in prefixos)]
-    sumidos = sorted(do_catalogo - do_site)
+    sumidos = sorted(do_catalogo - set(do_site))
 
-    # Card sem link e card que a atualizacao de estoque nao consegue verificar: o status
-    # dele fica congelado no que estiver la, para sempre, sem ninguem perceber.
-    cards = re.findall(r'<div class="card">.*?(?=<div class="card">|</div>\s*</section>)', html, re.S)
-    sem_link = []
-    for c in cards:
-        if not re.search(r'href="https://www\.editorasantacruz\.com\.br/livros/', c):
-            t = re.search(r'book-title">([^<]*)', c)
-            sem_link.append(t.group(1).strip() if t else "(card sem titulo)")
-
-    print(f"Site: **{len(do_site)}** produtos · Catálogo: **{len(do_catalogo)}**\n")
+    print(f"Site: **{len(do_site)}** produtos · Catálogo: **{len(cards)}** cards\n")
     if faltando:
         print(f"### {len(faltando)} título(s) novo(s) para cadastrar\n")
         for s in faltando:
-            print(f"- [{s}](https://www.editorasantacruz.com.br/livros/{s})")
+            print(f"- [{s}]({do_site[s]})")
         print("\nPara publicar, na máquina com o Drive montado:\n")
         print("```\n/catalogo\n```")
     else:
@@ -92,13 +111,12 @@ def main():
 
     if sem_link:
         print(f"\n### {len(sem_link)} card(s) sem link de produto\n")
-        print("O status destes **não é verificado** pela automação — fica congelado no")
-        print("que estiver lá até alguém corrigir à mão.\n")
+        print("Sem link, a atualização de estoque não consegue verificar o card.\n")
         for t in sem_link:
             print(f"- {t}")
 
     if sumidos:
-        print(f"\n### {len(sumidos)} no catálogo mas fora do sitemap")
+        print(f"\n### {len(sumidos)} no catálogo mas fora do sitemap\n")
         for s in sumidos:
             print(f"- {s}")
         print("\n(produto despublicado, ou link do card errado)")
