@@ -1,0 +1,5 @@
+{
+  "_comentario": "Produtos do site que NÃO entram no catálogo de revendedores. Decidido pela editora em 26/07/2026: o catálogo lista títulos avulsos; combos ficam de fora. Para passar a incluir um combo, remova o prefixo ou acrescente o slug em 'slugs' com a decisão contrária.",
+  "prefixos": ["combo-"],
+  "slugs": []
+}
