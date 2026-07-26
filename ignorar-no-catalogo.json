@@ -1,0 +1,5 @@
+{
+  "_comentario": "Produtos do site que NÃO entram no catálogo de revendedores. Decidido pela editora em 26/07/2026: o catálogo lista títulos avulsos. Ficam de fora os combos (22 no site), os kits e a papelaria. Para passar a incluir um deles, tire o prefixo daqui ou acrescente o slug em 'slugs' — o script volta a listá-lo como pendente de cadastro.",
+  "prefixos": ["combo-", "kit-", "planner-"],
+  "slugs": []
+}

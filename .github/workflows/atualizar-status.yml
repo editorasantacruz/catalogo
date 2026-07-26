@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   atualizar:
@@ -35,3 +36,23 @@ jobs:
           else
             echo "Nenhuma mudança de estoque."
           fi
+
+      # A partir daqui é só relatório: o cadastro do título novo não roda aqui porque
+      # a capa vem do Google Drive da editora, que o runner não enxerga. Quem publica
+      # é a skill /catalogo, na máquina do Lucas.
+      - name: Procurar títulos novos no site
+        id: novos
+        run: |
+          python scripts/detectar_novos.py "$RUNNER_TEMP/contagem.txt" > "$RUNNER_TEMP/relatorio.md"
+          cat "$RUNNER_TEMP/relatorio.md" >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/contagem.txt" >> "$GITHUB_OUTPUT" 2>/dev/null || echo "novos=0" >> "$GITHUB_OUTPUT"
+
+      - name: Abrir issue se houver título novo
+        if: steps.novos.outputs.novos != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Títulos novos no site para cadastrar no catálogo" \
+            --body-file "$RUNNER_TEMP/relatorio.md" \
+            --repo "$GITHUB_REPOSITORY"
